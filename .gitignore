@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+backend/.env
+
+# Node.js
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# Logs
+*.log
+
+# ML models
+ml/models/*.pkl
+ml/models/*.joblib
+
+# ML generated data
+ml/data/processed/*
+ml/data/features/*
+
+# Keep folder structure in Git
+!ml/data/processed/.gitkeep
+!ml/data/features/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
