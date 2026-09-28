@@ -13,10 +13,12 @@ import AllComplaints from './pages/company/AllComplaints.jsx'
 import AssignComplaint from './pages/company/AssignComplaint.jsx'
 import DepartmentManagement from './pages/company/DepartmentManagement.jsx'
 import NetworkInsights from './pages/company/NetworkInsights.jsx'
+import Login from './pages/Login.jsx'
 
 export default function App() {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/customer" element={<CustomerDashboard />} />

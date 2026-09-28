@@ -12,6 +12,7 @@ class User(Base):
     email = Column(String(150), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False)
+    department = Column(String(50), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -23,6 +24,8 @@ class Complaint(Base):
     complaint_type = Column(String(50), nullable=False)
     subject = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     department = Column(String(50), nullable=True)
     priority = Column(String(20), default="Medium")
     status = Column(String(30), default="Pending")

@@ -3,6 +3,7 @@ import {
   getNetworkMeasurements,
   predictLatency,
 } from '../../services/api'
+import NetworkCoverageMap from '../../components/NetworkCoverageMap'
 
 function NetworkInsights() {
   const [measurements, setMeasurements] = useState([])
@@ -83,22 +84,6 @@ function NetworkInsights() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="complaints-page">
-        Loading network measurements...
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="complaints-page complaints-error">
-        {error}
-      </div>
-    )
-  }
-
   return (
     <div className="complaints-page">
 
@@ -113,6 +98,8 @@ function NetworkInsights() {
           </p>
         </div>
       </div>
+
+      <NetworkCoverageMap />
 
       {/* ML Prediction */}
 

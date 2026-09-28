@@ -7,6 +7,7 @@ export default function Home() {
       <header className="home-header">
         <h1>Intelligent Telecom Operations Platform</h1>
         <p>Smart network operations and complaint management</p>
+        <Link to="/login">Staff sign in</Link>
       </header>
 
       <section className="role-selection">

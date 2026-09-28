@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.auth import get_current_user
 from app.models.models import Complaint, User
 
 
@@ -15,6 +16,8 @@ class ComplaintCreate(BaseModel):
     subject: str
     description: str
     priority: str = "Medium"
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 @router.post("/")
@@ -28,6 +31,8 @@ def create_complaint(
         subject=data.subject,
         description=data.description,
         priority=data.priority,
+        latitude=data.latitude,
+        longitude=data.longitude,
         status="Pending"
     )
 
@@ -68,17 +73,12 @@ def get_all_complaints(
     ]
 @router.get("/staff")
 def get_staff(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     staff = (
         db.query(User)
-        .filter(
-            User.role.in_([
-                "support_agent",
-                "engineer",
-                "manager"
-            ])
-        )
+        .filter(User.role == "staff")
         .order_by(User.name)
         .all()
     )
@@ -86,9 +86,9 @@ def get_staff(
     return [
         {
             "id": user.id,
-            "name": user.name,
             "email": user.email,
             "role": user.role,
+            "department": user.department,
         }
         for user in staff
     ]

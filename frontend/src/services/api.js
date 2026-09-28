@@ -5,6 +5,20 @@ export async function getHealth() {
   return response.json()
 }
 
+export async function login(email, password) {
+  const response = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Invalid email or password')
+  }
+
+  return response.json()
+}
+
 export async function submitComplaint(complaint) {
   const response = await fetch(`${API_BASE}/api/complaints/`, {
     method: 'POST',
@@ -65,8 +79,10 @@ export async function assignComplaint(
 
   return response.json()
 }
-export async function getStaff() {
-  const response = await fetch(`${API_BASE}/api/complaints/staff`)
+export async function getStaff(token) {
+  const response = await fetch(`${API_BASE}/api/complaints/staff`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
     throw new Error('Failed to fetch staff')
@@ -107,6 +123,19 @@ export async function getNetworkMeasurements(operator = '') {
 
   return response.json()
 }
+
+export async function getNetworkMapData(token) {
+  const response = await fetch(`${API_BASE}/api/network/map-data`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch network map data')
+  }
+
+  return response.json()
+}
+
 export async function predictLatency(data) {
   const response = await fetch(`${API_BASE}/api/predict/`, {
     method: 'POST',
