@@ -14,24 +14,28 @@ import AssignComplaint from './pages/company/AssignComplaint.jsx'
 import DepartmentManagement from './pages/company/DepartmentManagement.jsx'
 import NetworkInsights from './pages/company/NetworkInsights.jsx'
 import Login from './pages/Login.jsx'
+import InteractiveBackground from './components/InteractiveBackground.jsx'
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/customer" element={<CustomerDashboard />} />
-        <Route path="/customer/complaint" element={<SubmitComplaint />} />
-        <Route path="/customer/complaints" element={<MyComplaints />} />
-        <Route path="/customer/status" element={<ComplaintStatus />} />
-        <Route path="/customer/network" element={<NetworkStatus />} />
-        <Route path="/company" element={<CompanyDashboard />} />
-        <Route path="/company/complaints" element={<AllComplaints />} />
-        <Route path="/company/assign" element={<AssignComplaint />} />
-        <Route path="/company/departments" element={<DepartmentManagement />} />
-        <Route path="/company/network" element={<NetworkInsights />} />
-      </Route>
-    </Routes>
+    <>
+      <InteractiveBackground />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<Layout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/customer" element={<CustomerDashboard />} />
+          <Route path="/customer/complaint" element={<SubmitComplaint />} />
+          <Route path="/customer/complaints" element={<MyComplaints />} />
+          <Route path="/customer/status" element={<ComplaintStatus />} />
+          <Route path="/customer/network" element={<NetworkStatus />} />
+          <Route path="/company" element={<CompanyDashboard />} />
+          <Route path="/company/complaints" element={<AllComplaints />} />
+          <Route path="/company/assign" element={<AssignComplaint />} />
+          <Route path="/company/departments" element={<DepartmentManagement />} />
+          <Route path="/company/network" element={<NetworkInsights />} />
+        </Route>
+      </Routes>
+    </>
   )
 }

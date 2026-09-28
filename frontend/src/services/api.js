@@ -130,7 +130,9 @@ export async function getNetworkMapData(token) {
   })
 
   if (!response.ok) {
-    throw new Error('Failed to fetch network map data')
+    const error = new Error('Failed to fetch network map data')
+    error.status = response.status
+    throw error
   }
 
   return response.json()
