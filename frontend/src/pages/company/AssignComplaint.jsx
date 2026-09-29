@@ -3,8 +3,10 @@ import {
   assignComplaint,
   getStaff,
 } from '../../services/api'
+import { useAuth } from '../../AuthContext'
 
 function AssignComplaint() {
+  const { token } = useAuth()
   const [complaintId, setComplaintId] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [department, setDepartment] = useState('Technical')
@@ -18,8 +20,14 @@ function AssignComplaint() {
 
   useEffect(() => {
     async function loadStaff() {
+      if (!token) {
+        setError('Sign in to load staff members.')
+        setLoadingStaff(false)
+        return
+      }
+
       try {
-        const data = await getStaff()
+        const data = await getStaff(token)
         setStaff(data)
       } catch (err) {
         setError('Unable to load staff members.')
@@ -29,7 +37,7 @@ function AssignComplaint() {
     }
 
     loadStaff()
-  }, [])
+  }, [token])
 
   async function handleAssign(event) {
     event.preventDefault()
@@ -48,7 +56,8 @@ function AssignComplaint() {
       const result = await assignComplaint(
         Number(complaintId),
         Number(assignedTo),
-        department
+        department,
+        token
       )
 
       setMessage(
@@ -99,9 +108,9 @@ function AssignComplaint() {
                 : 'Select staff member'}
             </option>
 
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} — {member.role}
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.email} - {s.department}
               </option>
             ))}
           </select>

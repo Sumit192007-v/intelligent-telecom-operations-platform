@@ -1,5 +1,6 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from './AuthContext.jsx'
 
 const customerLinks = [
   { to: '/customer', label: 'Dashboard', end: true },
@@ -22,6 +23,14 @@ function linkClass({ isActive }) {
 }
 
 export default function Sidebar() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <aside className="app-sidebar">
       <div className="sidebar-brand">
@@ -61,6 +70,13 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </div>
+        <button
+          type="button"
+          className="sidebar-link sidebar-sign-out"
+          onClick={handleLogout}
+        >
+          Sign out
+        </button>
       </nav>
     </aside>
   )

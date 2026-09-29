@@ -6,4 +6,5 @@ sqlalchemy
 pymysql
 joblib
 pandas
-scikit-learn
+scikit-learn>=1.2
+bcrypt

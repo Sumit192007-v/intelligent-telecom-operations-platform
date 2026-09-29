@@ -1,14 +1,43 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../AuthContext'
 import { submitComplaint } from '../../services/api'
 
 export default function SubmitComplaint() {
+  const { token } = useAuth()
   const [complaintType, setComplaintType] = useState('Network Issue')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('Medium')
+  const [latitude, setLatitude] = useState(null)
+  const [longitude, setLongitude] = useState(null)
+  const [locationMessage, setLocationMessage] = useState('')
+  const [detectingLocation, setDetectingLocation] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage('Location detection is not supported by this browser.')
+      return
+    }
+
+    setDetectingLocation(true)
+    setLocationMessage('')
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLatitude(coords.latitude)
+        setLongitude(coords.longitude)
+        setLocationMessage('Location detected.')
+        setDetectingLocation(false)
+      },
+      () => {
+        setLocationMessage('Unable to detect location. Check browser permissions.')
+        setDetectingLocation(false)
+      },
+      { maximumAge: 60000, timeout: 10000 }
+    )
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -18,12 +47,13 @@ export default function SubmitComplaint() {
 
     try {
       const result = await submitComplaint({
-        customer_id: 1,
         complaint_type: complaintType,
         subject,
         description,
         priority,
-      })
+        latitude,
+        longitude,
+      }, token)
 
       setMessage(
         `Complaint submitted successfully. Complaint ID: CMP-${String(
@@ -34,6 +64,9 @@ export default function SubmitComplaint() {
       setSubject('')
       setDescription('')
       setPriority('Medium')
+      setLatitude(null)
+      setLongitude(null)
+      setLocationMessage('')
     } catch (error) {
       setMessage('Unable to submit complaint. Please try again.')
     } finally {
@@ -101,6 +134,26 @@ export default function SubmitComplaint() {
               <option>Critical</option>
             </select>
           </label>
+
+          <button
+            type="button"
+            onClick={handleDetectLocation}
+            disabled={detectingLocation}
+          >
+            {detectingLocation ? 'Detecting location...' : 'Detect My Location'}
+          </button>
+
+          <label>
+            Latitude
+            <input type="number" value={latitude ?? ''} readOnly />
+          </label>
+
+          <label>
+            Longitude
+            <input type="number" value={longitude ?? ''} readOnly />
+          </label>
+
+          {locationMessage && <p className="form-message">{locationMessage}</p>}
 
           <button type="submit" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Complaint'}

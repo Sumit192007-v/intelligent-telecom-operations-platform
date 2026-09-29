@@ -1,13 +1,24 @@
 
+import os
 from pathlib import Path
 
 import joblib
 import pandas as pd
+from dotenv import load_dotenv
+from ml.src.preprocessing import CLASSIFIER_FEATURES
 
 
 ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / "backend" / ".env")
 
-MODEL_PATH = ROOT / "ml/models/latency_classifier.joblib"
+configured_model_path = Path(
+    os.getenv("ML_MODEL_PATH", "ml/models/latency_classifier.joblib")
+)
+MODEL_PATH = (
+    configured_model_path
+    if configured_model_path.is_absolute()
+    else ROOT / configured_model_path
+)
 
 
 def load_model():
@@ -17,7 +28,8 @@ def load_model():
 
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
-            f"Trained model not found at: {MODEL_PATH}"
+            "Trained latency classifier is unavailable. "
+            "Run `python -m ml.src.classify` to create it."
         )
 
     package = joblib.load(MODEL_PATH)
@@ -34,6 +46,11 @@ def load_model():
         raise ValueError(
             "Saved model package is missing: "
             + ", ".join(sorted(missing_keys))
+        )
+
+    if package["features"] != CLASSIFIER_FEATURES:
+        raise ValueError(
+            "Saved classifier features do not match the current prediction API."
         )
 
     return package
@@ -59,8 +76,6 @@ def predict_latency(
 
     model = package["model"]
     threshold = package["threshold"]
-    features = package["features"]
-
     input_data = pd.DataFrame(
         [
             {
@@ -74,7 +89,7 @@ def predict_latency(
         ]
     )
 
-    input_data = input_data[features]
+    input_data = input_data[CLASSIFIER_FEATURES]
 
     probability = model.predict_proba(
         input_data

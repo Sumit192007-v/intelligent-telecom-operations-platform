@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS users (
         'customer',
         'support_agent',
         'engineer',
-        'manager'
+        'manager',
+        'staff'
     ) NOT NULL,
+    department VARCHAR(50) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -22,6 +24,8 @@ CREATE TABLE IF NOT EXISTS complaints (
     complaint_type VARCHAR(50) NOT NULL,
     subject VARCHAR(200) NOT NULL,
     description TEXT NOT NULL,
+    latitude DOUBLE DEFAULT NULL,
+    longitude DOUBLE DEFAULT NULL,
     department VARCHAR(50) DEFAULT NULL,
     priority ENUM(
         'Low',

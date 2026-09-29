@@ -1,15 +1,52 @@
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
+async function apiFetch(url, options) {
+  const response = await fetch(url, options)
+  if (response.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth:unauthorized'))
+  }
+  return response
+}
+
 export async function getHealth() {
-  const response = await fetch(`${API_BASE}/health`)
+  const response = await apiFetch(`${API_BASE}/health`)
   return response.json()
 }
 
-export async function submitComplaint(complaint) {
-  const response = await fetch(`${API_BASE}/api/complaints/`, {
+export async function login(email, password) {
+  const response = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Invalid email or password')
+  }
+
+  return response.json()
+}
+
+export async function validateSession(token) {
+  const response = await apiFetch(`${API_BASE}/api/auth/session`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) {
+    const error = new Error('Failed to validate session')
+    error.status = response.status
+    throw error
+  }
+
+  return response.json()
+}
+
+export async function submitComplaint(complaint, token) {
+  const response = await apiFetch(`${API_BASE}/api/complaints/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(complaint),
   })
@@ -20,9 +57,12 @@ export async function submitComplaint(complaint) {
 
   return response.json()
 }
-export async function getCustomerComplaints(customerId) {
-  const response = await fetch(
-    `${API_BASE}/api/complaints/${customerId}`
+export async function getCustomerComplaints(token) {
+  const response = await apiFetch(
+    `${API_BASE}/api/complaints/my`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
   )
 
   if (!response.ok) {
@@ -31,8 +71,10 @@ export async function getCustomerComplaints(customerId) {
 
   return response.json()
 }
-export async function getAllComplaints() {
-  const response = await fetch(`${API_BASE}/api/complaints/`)
+export async function getAllComplaints(token) {
+  const response = await apiFetch(`${API_BASE}/api/complaints/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
     throw new Error('Failed to fetch complaints')
@@ -43,14 +85,16 @@ export async function getAllComplaints() {
 export async function assignComplaint(
   complaintId,
   assignedTo,
-  department
+  department,
+  token
 ) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE}/api/complaints/${complaintId}/assign`,
     {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         assigned_to: assignedTo,
@@ -65,8 +109,10 @@ export async function assignComplaint(
 
   return response.json()
 }
-export async function getStaff() {
-  const response = await fetch(`${API_BASE}/api/complaints/staff`)
+export async function getStaff(token) {
+  const response = await apiFetch(`${API_BASE}/api/complaints/staff`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
     throw new Error('Failed to fetch staff')
@@ -74,8 +120,10 @@ export async function getStaff() {
 
   return response.json()
 }
-export async function getComplaintSummary() {
-  const response = await fetch(`${API_BASE}/api/complaints/summary`)
+export async function getComplaintSummary(token) {
+  const response = await apiFetch(`${API_BASE}/api/complaints/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
     throw new Error('Failed to fetch complaint summary')
@@ -83,9 +131,10 @@ export async function getComplaintSummary() {
 
   return response.json()
 }
-export async function getDepartmentSummary() {
-  const response = await fetch(
-    `${API_BASE}/api/complaints/departments`
+export async function getDepartmentSummary(token) {
+  const response = await apiFetch(
+    `${API_BASE}/api/complaints/departments`,
+    { headers: { Authorization: `Bearer ${token}` } }
   )
 
   if (!response.ok) {
@@ -94,12 +143,14 @@ export async function getDepartmentSummary() {
 
   return response.json()
 }
-export async function getNetworkMeasurements(operator = '') {
+export async function getNetworkMeasurements(token, operator = '') {
   const url = operator
     ? `${API_BASE}/api/network/measurements?operator=${encodeURIComponent(operator)}`
     : `${API_BASE}/api/network/measurements`
 
-  const response = await fetch(url)
+  const response = await apiFetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 
   if (!response.ok) {
     throw new Error('Failed to fetch network measurements')
@@ -107,11 +158,27 @@ export async function getNetworkMeasurements(operator = '') {
 
   return response.json()
 }
-export async function predictLatency(data) {
-  const response = await fetch(`${API_BASE}/api/predict/`, {
+
+export async function getNetworkMapData(token) {
+  const response = await apiFetch(`${API_BASE}/api/network/map-data`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) {
+    const error = new Error('Failed to fetch network map data')
+    error.status = response.status
+    throw error
+  }
+
+  return response.json()
+}
+
+export async function predictLatency(data, token) {
+  const response = await apiFetch(`${API_BASE}/api/predict/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   })
@@ -124,14 +191,16 @@ export async function predictLatency(data) {
 }
 export async function updateComplaintStatus(
   complaintId,
-  status
+  status,
+  token
 ) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE}/api/complaints/${complaintId}/status`,
     {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         status: status,
