@@ -56,7 +56,8 @@ function AssignComplaint() {
       const result = await assignComplaint(
         Number(complaintId),
         Number(assignedTo),
-        department
+        department,
+        token
       )
 
       setMessage(

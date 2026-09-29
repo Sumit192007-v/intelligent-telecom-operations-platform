@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
-from urllib.parse import quote_plus
-
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -16,6 +14,10 @@ ENV_FILE = ROOT / "backend" / ".env"
 load_dotenv(ENV_FILE)
 
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "telecom_operations")
 
 if not MYSQL_PASSWORD:
     raise ValueError(
@@ -23,9 +25,13 @@ if not MYSQL_PASSWORD:
         f"Expected .env file at: {ENV_FILE}"
     )
 
-DATABASE_URL = (
-    f"mysql+pymysql://root:{quote_plus(MYSQL_PASSWORD)}"
-    "@localhost:3306/telecom_operations"
+DATABASE_URL = URL.create(
+    "mysql+pymysql",
+    username=MYSQL_USER,
+    password=MYSQL_PASSWORD,
+    host=MYSQL_HOST,
+    port=MYSQL_PORT,
+    database=MYSQL_DATABASE,
 )
 
 engine = create_engine(

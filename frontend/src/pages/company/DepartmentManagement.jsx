@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getDepartmentSummary } from '../../services/api'
+import { useAuth } from '../../AuthContext'
 
 function DepartmentManagement() {
+  const { token } = useAuth()
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -9,7 +11,7 @@ function DepartmentManagement() {
   useEffect(() => {
     async function loadDepartments() {
       try {
-        const data = await getDepartmentSummary()
+        const data = await getDepartmentSummary(token)
         setDepartments(data)
       } catch (err) {
         setError('Unable to load departments')
@@ -19,7 +21,7 @@ function DepartmentManagement() {
     }
 
     loadDepartments()
-  }, [])
+  }, [token])
 
   if (loading) {
     return <div className="complaints-page">Loading departments...</div>

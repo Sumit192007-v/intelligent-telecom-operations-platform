@@ -3,8 +3,10 @@ import {
   getAllComplaints,
   updateComplaintStatus,
 } from '../../services/api'
+import { useAuth } from '../../AuthContext'
 
 function AllComplaints() {
+  const { token } = useAuth()
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,10 +18,11 @@ function AllComplaints() {
   try {
     await updateComplaintStatus(
       complaintId,
-      status
+      status,
+      token
     )
 
-    const data = await getAllComplaints()
+    const data = await getAllComplaints(token)
     setComplaints(data)
   } catch (err) {
     console.error(err)
@@ -30,7 +33,7 @@ function AllComplaints() {
   useEffect(() => {
     async function loadComplaints() {
       try {
-        const data = await getAllComplaints()
+        const data = await getAllComplaints(token)
         setComplaints(data)
       } catch (err) {
         setError('Unable to load complaints')
@@ -40,7 +43,7 @@ function AllComplaints() {
     }
 
     loadComplaints()
-  }, [])
+  }, [token])
 
   if (loading) {
     return <div className="complaints-page">Loading complaints...</div>

@@ -4,7 +4,7 @@ import { useAuth } from '../../AuthContext'
 import { submitComplaint } from '../../services/api'
 
 export default function SubmitComplaint() {
-  const { user } = useAuth()
+  const { token } = useAuth()
   const [complaintType, setComplaintType] = useState('Network Issue')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
@@ -47,14 +47,13 @@ export default function SubmitComplaint() {
 
     try {
       const result = await submitComplaint({
-        customer_id: user?.id ?? 1,
         complaint_type: complaintType,
         subject,
         description,
         priority,
         latitude,
         longitude,
-      })
+      }, token)
 
       setMessage(
         `Complaint submitted successfully. Complaint ID: CMP-${String(

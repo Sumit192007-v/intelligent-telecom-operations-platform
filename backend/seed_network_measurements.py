@@ -1,10 +1,11 @@
+import os
 import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
 import pymysql
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -86,10 +87,10 @@ def make_synthetic_rows(count, known_keys):
 
 
 def main():
-    config = dotenv_values(ENV_PATH)
-    password = config.get("MYSQL_PASSWORD")
+    load_dotenv(ENV_PATH)
+    password = os.getenv("MYSQL_PASSWORD")
     if not password:
-        raise RuntimeError("MYSQL_PASSWORD is missing from backend/.env")
+        raise RuntimeError("MYSQL_PASSWORD must be set in the environment or backend/.env")
 
     frame = pd.read_csv(CSV_PATH)
     frame["timestamp"] = pd.to_datetime(
@@ -98,10 +99,11 @@ def main():
     frame = frame.sample(frac=1, random_state=4500).reset_index(drop=True)
 
     connection = pymysql.connect(
-        host="localhost",
-        user="root",
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        user=os.getenv("MYSQL_USER", "root"),
         password=password,
-        database="telecom_operations",
+        database=os.getenv("MYSQL_DATABASE", "telecom_operations"),
         autocommit=False,
     )
     try:

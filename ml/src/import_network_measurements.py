@@ -1,19 +1,29 @@
+import os
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import create_engine, text
-from urllib.parse import quote_plus
+from dotenv import load_dotenv
+from sqlalchemy import URL, create_engine, text
 
 
 ROOT = Path(__file__).resolve().parents[2]
 
 CSV_PATH = ROOT / "ml/data/features/telecom_features.csv"
+ENV_PATH = ROOT / "backend" / ".env"
 
-MYSQL_PASSWORD = "spsv@0123"
+load_dotenv(ENV_PATH)
 
-DATABASE_URL = (
-    f"mysql+pymysql://root:{quote_plus(MYSQL_PASSWORD)}"
-    "@localhost:3306/telecom_operations"
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+if not MYSQL_PASSWORD:
+    raise ValueError("MYSQL_PASSWORD must be set in the environment or backend/.env")
+
+DATABASE_URL = URL.create(
+    "mysql+pymysql",
+    username=os.getenv("MYSQL_USER", "root"),
+    password=MYSQL_PASSWORD,
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "telecom_operations"),
 )
 
 

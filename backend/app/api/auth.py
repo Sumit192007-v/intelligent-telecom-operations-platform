@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth import create_access_token
+from app.auth import create_access_token, get_current_user
 from app.database import get_db
 from app.models.models import User
 
@@ -45,4 +45,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             "id": user.id,
             "role": user.role,
         },
+    }
+
+
+@router.get("/session")
+def get_session(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "role": current_user.role,
     }

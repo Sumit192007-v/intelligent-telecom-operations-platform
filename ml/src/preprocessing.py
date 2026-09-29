@@ -8,6 +8,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "dataset/telecom_real_measurements.csv"
+OUTPUT = ROOT / "ml/data/processed/telecom_clean.csv"
 INPUT = ROOT / "ml/data/features/telecom_features.csv"
 
 
@@ -26,6 +28,55 @@ RADIO_FEATURES = [
     "5g_pci",
     "lte_earfcn",
 ]
+
+CLASSIFIER_FEATURES = [
+    "operator",
+    "hour",
+    "day_of_week",
+    "5g_frequency_mhz",
+    "5g_pci",
+    "lte_earfcn",
+]
+
+
+def load_data(path=SOURCE):
+    return pd.read_csv(path)
+
+
+def clean_data(df):
+    required_columns = {"operator", "timestamp", "rtt_ms"}
+    missing_columns = required_columns - set(df.columns)
+    if missing_columns:
+        raise ValueError(
+            "Dataset is missing required columns: "
+            + ", ".join(sorted(missing_columns))
+        )
+
+    cleaned = df.copy()
+    cleaned["operator"] = cleaned["operator"].astype("string").str.strip()
+    cleaned["timestamp"] = pd.to_datetime(
+        cleaned["timestamp"], errors="coerce", utc=True
+    )
+    numeric_columns = [
+        "latitude",
+        "longitude",
+        "download_mbps",
+        "upload_mbps",
+        "rtt_ms",
+        *RADIO_FEATURES,
+    ]
+    for column in numeric_columns:
+        if column in cleaned:
+            cleaned[column] = pd.to_numeric(cleaned[column], errors="coerce")
+
+    return cleaned.dropna(subset=["operator", "timestamp", "rtt_ms"])
+
+
+def preprocess_data(source=SOURCE, output=OUTPUT):
+    cleaned = clean_data(load_data(source))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    cleaned.to_csv(output, index=False)
+    return cleaned
 
 
 def build_preprocessor(
@@ -91,9 +142,9 @@ def build_preprocessor(
 
 
 if __name__ == "__main__":
-    df = pd.read_csv(INPUT)
+    df = preprocess_data()
 
-    features = CORE_FEATURES + RADIO_FEATURES
+    features = [*CORE_FEATURES, *RADIO_FEATURES]
     X = df[features]
     y = df[TARGET]
 

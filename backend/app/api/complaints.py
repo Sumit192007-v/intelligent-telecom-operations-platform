@@ -1,21 +1,23 @@
-from fastapi import APIRouter, Depends
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import require_role
 from app.models.models import Complaint, User
 
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
+DEPARTMENTS = ("Technical", "Network", "Billing", "Customer Support")
 
 
 class ComplaintCreate(BaseModel):
-    customer_id: int
     complaint_type: str
     subject: str
     description: str
-    priority: str = "Medium"
+    priority: Literal["Low", "Medium", "High", "Critical"] = "Medium"
     latitude: float | None = None
     longitude: float | None = None
 
@@ -23,10 +25,11 @@ class ComplaintCreate(BaseModel):
 @router.post("/")
 def create_complaint(
     data: ComplaintCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("customer")),
 ):
     complaint = Complaint(
-        customer_id=data.customer_id,
+        customer_id=current_user.id,
         complaint_type=data.complaint_type,
         subject=data.subject,
         description=data.description,
@@ -47,7 +50,8 @@ def create_complaint(
     }
 @router.get("/")
 def get_all_complaints(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("staff")),
 ):
     complaints = (
         db.query(Complaint)
@@ -74,7 +78,7 @@ def get_all_complaints(
 @router.get("/staff")
 def get_staff(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("staff")),
 ):
     staff = (
         db.query(User)
@@ -94,7 +98,8 @@ def get_staff(
     ]
 @router.get("/summary")
 def get_complaint_summary(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("staff")),
 ):
     total = db.query(Complaint).count()
 
@@ -138,18 +143,12 @@ def get_complaint_summary(
     }
 @router.get("/departments")
 def get_department_summary(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("staff")),
 ):
-    departments = [
-        "Technical",
-        "Network",
-        "Billing",
-        "Customer Support",
-    ]
-
     result = []
 
-    for department in departments:
+    for department in DEPARTMENTS:
         count = (
             db.query(Complaint)
             .filter(Complaint.department == department)
@@ -162,14 +161,14 @@ def get_department_summary(
         })
 
     return result
-@router.get("/{customer_id}")
+@router.get("/my")
 def get_customer_complaints(
-    customer_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("customer")),
 ):
     complaints = (
         db.query(Complaint)
-        .filter(Complaint.customer_id == customer_id)
+        .filter(Complaint.customer_id == current_user.id)
         .order_by(Complaint.created_at.desc())
         .all()
     )
@@ -197,7 +196,8 @@ class ComplaintAssignment(BaseModel):
 def assign_complaint(
     complaint_id: int,
     data: ComplaintAssignment,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("staff")),
 ):
     complaint = (
         db.query(Complaint)
@@ -206,9 +206,27 @@ def assign_complaint(
     )
 
     if not complaint:
-        return {
-            "message": "Complaint not found"
-        }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
+
+    assignee = db.query(User).filter(User.id == data.assigned_to).first()
+    if assignee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff member not found",
+        )
+    if assignee.role != "staff":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assignee must have the staff role",
+        )
+    if data.department not in DEPARTMENTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid department",
+        )
 
     complaint.assigned_to = data.assigned_to
     complaint.department = data.department
@@ -232,7 +250,8 @@ class ComplaintStatusUpdate(BaseModel):
 def update_complaint_status(
     complaint_id: int,
     data: ComplaintStatusUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("staff")),
 ):
     allowed_statuses = [
         "Pending",
@@ -243,9 +262,10 @@ def update_complaint_status(
     ]
 
     if data.status not in allowed_statuses:
-        return {
-            "message": "Invalid complaint status"
-        }
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid complaint status",
+        )
 
     complaint = (
         db.query(Complaint)
@@ -254,9 +274,10 @@ def update_complaint_status(
     )
 
     if not complaint:
-        return {
-            "message": "Complaint not found"
-        }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
 
     complaint.status = data.status
 

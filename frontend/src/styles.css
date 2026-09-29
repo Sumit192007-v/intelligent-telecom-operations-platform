@@ -442,6 +442,15 @@ a {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.sidebar-sign-out {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .sidebar-link:hover {
   background: var(--surface-2);
   color: var(--text);

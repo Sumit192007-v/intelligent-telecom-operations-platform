@@ -1,8 +1,10 @@
 
+import os
 from pathlib import Path
 
 import joblib
 import pandas as pd
+from dotenv import load_dotenv
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
@@ -16,28 +18,36 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
 
-from preprocessing import build_preprocessor
+from ml.src.preprocessing import CLASSIFIER_FEATURES, build_preprocessor
 
 
 ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / "backend" / ".env")
 
 INPUT = ROOT / "ml/data/features/telecom_features.csv"
-MODEL_OUTPUT = ROOT / "ml/models/latency_classifier.joblib"
+configured_model_path = Path(
+    os.getenv("ML_MODEL_PATH", "ml/models/latency_classifier.joblib")
+)
+MODEL_OUTPUT = (
+    configured_model_path
+    if configured_model_path.is_absolute()
+    else ROOT / configured_model_path
+)
 
 TARGET = "elevated_latency"
 
-FEATURES = [
-    "operator",
-    "hour",
-    "day_of_week",
-    "5g_frequency_mhz",
-    "5g_pci",
-    "lte_earfcn",
-]
+FEATURES = CLASSIFIER_FEATURES
 
 
 def load_data():
+    if not INPUT.exists():
+        raise FileNotFoundError(
+            "Classifier features are missing; run preprocessing and "
+            "feature engineering first."
+        )
+
     df = pd.read_csv(INPUT)
+    df = df.dropna(subset=["rtt_ms", "timestamp"])
 
     df[TARGET] = (
         df["rtt_ms"] >= 75
@@ -115,6 +125,8 @@ def main():
     d2_df = df[
         df["source_drive"] == "d2"
     ].copy()
+    if d2_df.empty:
+        raise ValueError("No d2 training measurements are available.")
 
     d2_df = d2_df.sort_values(
         "timestamp"
@@ -142,6 +154,13 @@ def main():
     X_test = test_df[FEATURES]
     y_test = test_df[TARGET]
 
+    minimum_class_count = int(y_train.value_counts().min())
+    if minimum_class_count < 2 or y_test.nunique() < 2:
+        raise ValueError(
+            "The d2 dataset must contain both latency classes in the "
+            "training and holdout data."
+        )
+
     print(
         "Training rows:",
         len(train_df),
@@ -164,7 +183,7 @@ def main():
     cv_model = create_model()
 
     cv = StratifiedKFold(
-        n_splits=5,
+        n_splits=min(5, minimum_class_count),
         shuffle=True,
         random_state=42,
     )

@@ -118,7 +118,7 @@ export default function NetworkCoverageMap() {
         frequency: measurement.frequency ?? 0,
         pci: measurement.pci ?? 0,
         earfcn: measurement.earfcn ?? 0,
-      })
+      }, token)
       setPredictions((current) => ({
         ...current,
         [measurement.id]: { result },
