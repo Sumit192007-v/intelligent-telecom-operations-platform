@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet'
-import { useAuth } from '../AuthContext'
 import { getNetworkMapData, predictLatency } from '../services/api'
 
 const statusStyles = {
@@ -85,7 +83,6 @@ function telemetryValue(value, suffix = '') {
 }
 
 export default function NetworkCoverageMap() {
-  const { token, logout } = useAuth()
   const [measurements, setMeasurements] = useState([])
   const [statusFilter, setStatusFilter] = useState('all')
   const [operatorFilter, setOperatorFilter] = useState('all')
@@ -118,7 +115,7 @@ export default function NetworkCoverageMap() {
         frequency: measurement.frequency ?? 0,
         pci: measurement.pci ?? 0,
         earfcn: measurement.earfcn ?? 0,
-      }, token)
+      })
       setPredictions((current) => ({
         ...current,
         [measurement.id]: { result },
@@ -151,27 +148,15 @@ export default function NetworkCoverageMap() {
     let active = true
 
     async function loadMapData() {
-      if (!token) {
-        setError('session')
-        setMeasurements([])
-        setLoading(false)
-        return
-      }
-
       setLoading(true)
       setError('')
       try {
-        const data = await getNetworkMapData(token)
+        const data = await getNetworkMapData()
         if (active) setMeasurements(data)
       } catch (requestError) {
         if (!active) return
         setMeasurements([])
-        if (requestError.status === 401) {
-          setError('session')
-          logout()
-        } else {
-          setError('offline')
-        }
+        setError('offline')
       } finally {
         if (active) setLoading(false)
       }
@@ -181,7 +166,7 @@ export default function NetworkCoverageMap() {
     return () => {
       active = false
     }
-  }, [token, retryCount])
+  }, [retryCount])
 
   useEffect(() => {
     if (!selectedMeasurement) return undefined
@@ -267,32 +252,18 @@ export default function NetworkCoverageMap() {
 
         {error && (
           <div className="telemetry-recovery-overlay" role="alert">
-            <span className="telemetry-kicker">
-              {error === 'session' ? 'AUTHENTICATION REQUIRED' : 'UPSTREAM CONNECTION'}
-            </span>
+            <span className="telemetry-kicker">UPSTREAM CONNECTION</span>
             <h3>
-              {error === 'session'
-                ? 'Session Expired: Please re-authenticate to stream live telemetry.'
-                : 'Telemetry Service Offline: Ensure FastAPI is running on port 8000.'}
+              Telemetry Service Offline: Ensure FastAPI is running on port 8000.
             </h3>
-            <p>
-              {error === 'session'
-                ? 'Your live session is no longer valid.'
-                : 'The live node stream could not be reached.'}
-            </p>
-            {error === 'session' ? (
-              <Link className="telemetry-recovery-action" to="/login">
-                Sign In Again
-              </Link>
-            ) : (
-              <button
-                type="button"
-                className="telemetry-recovery-action"
-                onClick={() => setRetryCount((attempt) => attempt + 1)}
-              >
-                Retry Connection
-              </button>
-            )}
+            <p>The live node stream could not be reached.</p>
+            <button
+              type="button"
+              className="telemetry-recovery-action"
+              onClick={() => setRetryCount((attempt) => attempt + 1)}
+            >
+              Retry Connection
+            </button>
           </div>
         )}
 

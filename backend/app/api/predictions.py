@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -9,7 +9,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from ml.src.predict import predict_latency
-from app.auth import require_role
 
 
 router = APIRouter(prefix="/predict", tags=["ML Prediction"])
@@ -27,7 +26,7 @@ class PredictionRequest(BaseModel):
     lte_earfcn: float | None = None
 
 
-@router.post("/", dependencies=[Depends(require_role("staff"))])
+@router.post("/")
 def predict_network_latency(data: PredictionRequest):
     try:
         return predict_latency(

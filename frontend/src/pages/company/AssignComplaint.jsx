@@ -3,10 +3,8 @@ import {
   assignComplaint,
   getStaff,
 } from '../../services/api'
-import { useAuth } from '../../AuthContext'
 
 function AssignComplaint() {
-  const { token } = useAuth()
   const [complaintId, setComplaintId] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
   const [department, setDepartment] = useState('Technical')
@@ -20,14 +18,8 @@ function AssignComplaint() {
 
   useEffect(() => {
     async function loadStaff() {
-      if (!token) {
-        setError('Sign in to load staff members.')
-        setLoadingStaff(false)
-        return
-      }
-
       try {
-        const data = await getStaff(token)
+        const data = await getStaff()
         setStaff(data)
       } catch (err) {
         setError('Unable to load staff members.')
@@ -37,7 +29,7 @@ function AssignComplaint() {
     }
 
     loadStaff()
-  }, [token])
+  }, [])
 
   async function handleAssign(event) {
     event.preventDefault()
@@ -56,8 +48,7 @@ function AssignComplaint() {
       const result = await assignComplaint(
         Number(complaintId),
         Number(assignedTo),
-        department,
-        token
+        department
       )
 
       setMessage(

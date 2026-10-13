@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getComplaintSummary } from '../../services/api'
-import { useAuth } from '../../AuthContext'
 
 function CompanyDashboard() {
-  const { token } = useAuth()
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -12,7 +10,7 @@ function CompanyDashboard() {
   useEffect(() => {
     async function loadSummary() {
       try {
-        const data = await getComplaintSummary(token)
+        const data = await getComplaintSummary()
         setSummary(data)
       } catch (err) {
         setError('Unable to load complaint summary')
@@ -22,7 +20,7 @@ function CompanyDashboard() {
     }
 
     loadSummary()
-  }, [token])
+  }, [])
 
   if (loading) {
     return <div className="complaints-page">Loading dashboard...</div>

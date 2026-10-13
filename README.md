@@ -1,6 +1,6 @@
 # Intelligent Telecom Operations Platform
 
-A React and FastAPI application for customer complaints, staff complaint management, telecom measurement exploration, and staff-only latency classification. Network measurements come from the project dataset and may include synthetic rows added by the seed script; this is not a live carrier feed.
+A React and FastAPI application for customer complaints, staff complaint management, telecom measurement exploration, and latency classification. Network measurements come from the project dataset and may include synthetic rows added by the seed script; this is not a live carrier feed.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ Create the application schema using `database/schema/schema.sql`. The schema cre
 
 ## Environment
 
-If `backend/.env` does not already exist, copy `.env.example` there and replace its placeholders locally. Do not overwrite an existing environment file. The backend reads `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, and `JWT_SECRET`. `ML_MODEL_PATH` is optional and defaults to `ml/models/latency_classifier.joblib` relative to the repository root.
+If `backend/.env` does not already exist, copy `.env.example` there and replace its placeholders locally. Do not overwrite an existing environment file. The backend reads `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE`. `ML_MODEL_PATH` is optional and defaults to `ml/models/latency_classifier.joblib` relative to the repository root.
 
 The frontend defaults to `http://localhost:8000`. To override it, set `VITE_API_BASE` in `frontend/.env` and restart Vite. Do not commit either `.env` file.
 
@@ -47,13 +47,15 @@ npm run dev
 
 Vite prints the local URL, normally `http://localhost:5173`.
 
-## Demo Account Setup
+## Users (No Login)
 
-The project does not include default users, registration, or an account-provisioning command. Provision test accounts through a controlled local database process. Create `customer` and `staff` rows in `users`; store a bcrypt password hash in `password_hash`, never a plaintext password. No real credentials are included in this repository.
+Authentication has been removed: there is no login page, JWT, or role check, and every page and API endpoint is open. Customer actions run as one shared guest customer (`guest@local.invalid`), which the backend creates automatically on first use.
+
+The "Assign Complaint" page lists rows in `users` with `role = 'staff'`. To get some, run `database/seed/seed_staff.sql` (see below). Do not expose this version to the public internet.
 
 ## Complaint Workflow
 
-Customers submit complaints with type, subject, description, priority, and optional coordinates. The authenticated JWT determines `customer_id`; the request body cannot select an owner. New complaints start as `Pending`. Staff can assign a complaint and department, which sets it to `Assigned`, then update status among `Pending`, `Assigned`, `In Progress`, `Resolved`, and `Closed`. Customers can view only their own complaints; staff can view all complaints.
+Customers submit complaints with type, subject, description, priority, and optional coordinates. All complaints are owned by the shared guest customer. New complaints start as `Pending`. The company side can assign a complaint and department, which sets it to `Assigned`, then update status among `Pending`, `Assigned`, `In Progress`, `Resolved`, and `Closed`. "My Complaints" shows the guest customer's complaints; "All Complaints" shows everything.
 
 ## ML Classifier Setup and Training
 

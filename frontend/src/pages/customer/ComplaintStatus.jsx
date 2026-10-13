@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../AuthContext'
 import { getCustomerComplaints } from '../../services/api'
 
 function ComplaintStatus() {
-  const { token } = useAuth()
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -11,7 +9,7 @@ function ComplaintStatus() {
   useEffect(() => {
     async function loadComplaints() {
       try {
-        const data = await getCustomerComplaints(token)
+        const data = await getCustomerComplaints()
         setComplaints(data)
       } catch (err) {
         setError('Unable to load complaint status')
@@ -21,7 +19,7 @@ function ComplaintStatus() {
     }
 
     loadComplaints()
-  }, [token])
+  }, [])
 
   if (loading) {
     return <div className="complaints-page">Loading...</div>

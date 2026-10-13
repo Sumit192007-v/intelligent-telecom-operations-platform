@@ -12,10 +12,9 @@ class TestClassifier:
 
 
 def test_staff_prediction_uses_classifier_features(
-    api_client, create_user, auth_headers, monkeypatch, tmp_path
+    api_client, monkeypatch, tmp_path
 ):
-    client, sessions = api_client
-    staff_id, _ = create_user(sessions, "staff")
+    client, _ = api_client
     predict_module = importlib.import_module("ml.src.predict")
     model_path = tmp_path / "classifier.joblib"
     joblib.dump(
@@ -30,7 +29,6 @@ def test_staff_prediction_uses_classifier_features(
 
     response = client.post(
         "/api/predict/",
-        headers=auth_headers(staff_id),
         json={
             "operator": "AT&T",
             "hour": 14,
@@ -50,31 +48,16 @@ def test_staff_prediction_uses_classifier_features(
 
 
 def test_missing_classifier_returns_clear_service_error(
-    api_client, create_user, auth_headers, monkeypatch, tmp_path
+    api_client, monkeypatch, tmp_path
 ):
-    client, sessions = api_client
-    staff_id, _ = create_user(sessions, "staff")
+    client, _ = api_client
     predict_module = importlib.import_module("ml.src.predict")
     monkeypatch.setattr(predict_module, "MODEL_PATH", tmp_path / "missing.joblib")
 
     response = client.post(
         "/api/predict/",
-        headers=auth_headers(staff_id),
         json={"operator": "AT&T", "hour": 14, "day_of_week": 5},
     )
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Latency classifier model is unavailable"
-
-
-def test_customer_cannot_run_staff_prediction(api_client, create_user, auth_headers):
-    client, sessions = api_client
-    customer_id, _ = create_user(sessions, "customer")
-
-    response = client.post(
-        "/api/predict/",
-        headers=auth_headers(customer_id),
-        json={"operator": "AT&T", "hour": 14, "day_of_week": 5},
-    )
-
-    assert response.status_code == 403

@@ -3,9 +3,8 @@ from sqlalchemy.orm import Session
 import numpy as np
 from sklearn.neighbors import BallTree
 
-from app.auth import require_role
 from app.database import get_db
-from app.models.models import Complaint, NetworkMeasurement, User
+from app.models.models import Complaint, NetworkMeasurement
 
 router = APIRouter(
     prefix="/network",
@@ -20,7 +19,6 @@ EARTH_RADIUS_KM = 6371.0
 def get_network_measurements(
     operator: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     query = db.query(NetworkMeasurement)
 
@@ -59,7 +57,6 @@ def get_network_measurements(
 @router.get("/map-data")
 def get_network_map_data(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     measurements = (
         db.query(

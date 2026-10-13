@@ -7,4 +7,3 @@ pymysql
 joblib
 pandas
 scikit-learn>=1.2
-bcrypt

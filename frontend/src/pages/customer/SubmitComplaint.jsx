@@ -1,10 +1,8 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../../AuthContext'
 import { submitComplaint } from '../../services/api'
 
 export default function SubmitComplaint() {
-  const { token } = useAuth()
   const [complaintType, setComplaintType] = useState('Network Issue')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
@@ -53,7 +51,7 @@ export default function SubmitComplaint() {
         priority,
         latitude,
         longitude,
-      }, token)
+      })
 
       setMessage(
         `Complaint submitted successfully. Complaint ID: CMP-${String(

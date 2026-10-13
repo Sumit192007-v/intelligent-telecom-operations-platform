@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import require_role
+from app.guest import get_guest_customer
 from app.models.models import Complaint, User
 
 
@@ -26,7 +26,7 @@ class ComplaintCreate(BaseModel):
 def create_complaint(
     data: ComplaintCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("customer")),
+    current_user: User = Depends(get_guest_customer),
 ):
     complaint = Complaint(
         customer_id=current_user.id,
@@ -51,7 +51,6 @@ def create_complaint(
 @router.get("/")
 def get_all_complaints(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     complaints = (
         db.query(Complaint)
@@ -78,7 +77,6 @@ def get_all_complaints(
 @router.get("/staff")
 def get_staff(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     staff = (
         db.query(User)
@@ -99,7 +97,6 @@ def get_staff(
 @router.get("/summary")
 def get_complaint_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     total = db.query(Complaint).count()
 
@@ -144,7 +141,6 @@ def get_complaint_summary(
 @router.get("/departments")
 def get_department_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     result = []
 
@@ -164,7 +160,7 @@ def get_department_summary(
 @router.get("/my")
 def get_customer_complaints(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("customer")),
+    current_user: User = Depends(get_guest_customer),
 ):
     complaints = (
         db.query(Complaint)
@@ -197,7 +193,6 @@ def assign_complaint(
     complaint_id: int,
     data: ComplaintAssignment,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     complaint = (
         db.query(Complaint)
@@ -251,7 +246,6 @@ def update_complaint_status(
     complaint_id: int,
     data: ComplaintStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
 ):
     allowed_statuses = [
         "Pending",

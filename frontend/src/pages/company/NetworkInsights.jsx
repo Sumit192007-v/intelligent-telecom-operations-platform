@@ -4,10 +4,8 @@ import {
   predictLatency,
 } from '../../services/api'
 import NetworkCoverageMap from '../../components/NetworkCoverageMap'
-import { useAuth } from '../../AuthContext'
 
 function NetworkInsights() {
-  const { token } = useAuth()
   const [measurements, setMeasurements] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -22,7 +20,7 @@ function NetworkInsights() {
         setError('')
 
         // Load measurements for ALL operators
-        const data = await getNetworkMeasurements(token)
+        const data = await getNetworkMeasurements()
 
         setMeasurements(data)
       } catch (err) {
@@ -33,7 +31,7 @@ function NetworkInsights() {
     }
 
     loadMeasurements()
-  }, [token])
+  }, [])
 
   async function handlePrediction() {
     setPredictionError('')
@@ -73,7 +71,7 @@ function NetworkInsights() {
           measurement['5g_pci'],
         lte_earfcn:
           measurement.lte_earfcn,
-      }, token)
+      })
 
       setPrediction({
         ...result,
