@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import CountUp from '../../components/CountUp.jsx'
 import { getComplaintSummary } from '../../services/api'
 
 function CompanyDashboard() {
@@ -42,32 +43,32 @@ function CompanyDashboard() {
       <div className="dashboard-stats">
         <div className="dashboard-stat-card">
           <span>Total Complaints</span>
-          <strong>{summary.total}</strong>
+          <strong><CountUp value={summary.total} /></strong>
         </div>
 
         <div className="dashboard-stat-card">
           <span>Pending</span>
-          <strong>{summary.pending}</strong>
+          <strong><CountUp value={summary.pending} /></strong>
         </div>
 
         <div className="dashboard-stat-card">
           <span>Assigned</span>
-          <strong>{summary.assigned}</strong>
+          <strong><CountUp value={summary.assigned} /></strong>
         </div>
 
         <div className="dashboard-stat-card">
           <span>In Progress</span>
-          <strong>{summary.in_progress}</strong>
+          <strong><CountUp value={summary.in_progress} /></strong>
         </div>
 
         <div className="dashboard-stat-card">
           <span>Resolved</span>
-          <strong>{summary.resolved}</strong>
+          <strong><CountUp value={summary.resolved} /></strong>
         </div>
 
         <div className="dashboard-stat-card">
           <span>Closed</span>
-          <strong>{summary.closed}</strong>
+          <strong><CountUp value={summary.closed} /></strong>
         </div>
       </div>
 
@@ -100,4 +101,4 @@ function CompanyDashboard() {
   )
 }
 
-export default CompanyDashboard
+export default CompanyDashboard

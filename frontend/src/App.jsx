@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 import Layout from './Layout.jsx'
+import PulseBackground from './components/PulseBackground.jsx'
 import Home from './pages/Home.jsx'
 import CustomerDashboard from './pages/customer/CustomerDashboard.jsx'
 import CompanyDashboard from './pages/company/CompanyDashboard.jsx'
@@ -13,12 +14,11 @@ import AllComplaints from './pages/company/AllComplaints.jsx'
 import AssignComplaint from './pages/company/AssignComplaint.jsx'
 import DepartmentManagement from './pages/company/DepartmentManagement.jsx'
 import NetworkInsights from './pages/company/NetworkInsights.jsx'
-import InteractiveBackground from './components/InteractiveBackground.jsx'
 
 export default function App() {
   return (
     <>
-      <InteractiveBackground />
+      <PulseBackground />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />

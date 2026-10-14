@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import CountUp from '../../components/CountUp.jsx'
 import { getDepartmentSummary } from '../../services/api'
 
 function DepartmentManagement() {
@@ -45,7 +46,7 @@ function DepartmentManagement() {
             key={department.department}
           >
             <span>{department.department}</span>
-            <strong>{department.complaints}</strong>
+            <strong><CountUp value={department.complaints} /></strong>
             <small>Complaints</small>
           </div>
         ))}
@@ -54,4 +55,4 @@ function DepartmentManagement() {
   )
 }
 
-export default DepartmentManagement
+export default DepartmentManagement
