@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../AuthContext'
 import { getCustomerComplaints } from '../../services/api'
+import ResolutionTimeline from '../../components/complaints/ResolutionTimeline'
+import StatusTransitionModal from '../../components/complaints/StatusTransitionModal'
+import AssignmentBadge from '../../components/complaints/AssignmentBadge'
+import '../../styles/complaint-operations.css'
 
 function ComplaintStatus() {
   const { token } = useAuth()
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const handleStatusUpdated = (updated) => {
+    setComplaints((prev) =>
+      prev.map((c) => (c.id === updated.complaint_id ? { ...c, ...updated } : c))
+    )
+  }
 
   useEffect(() => {
     async function loadComplaints() {
@@ -36,7 +46,7 @@ function ComplaintStatus() {
       <div className="complaints-header">
         <div>
           <h1>Complaint Status</h1>
-          <p>Track the current status of your complaints.</p>
+          <p>Track the real-time resolution lifecycle of your complaints.</p>
         </div>
       </div>
 
@@ -58,14 +68,14 @@ function ComplaintStatus() {
                   <h2>{complaint.subject}</h2>
                 </div>
 
-                <span
-                  className={`complaint-status status-${complaint.status
-                    .toLowerCase()
-                    .replace(/\s+/g, '-')}`}
-                >
-                  {complaint.status}
-                </span>
+                <AssignmentBadge
+                  department={complaint.department}
+                  assignedTo={complaint.assigned_to}
+                />
               </div>
+
+              {/* Lifecycle Progress Stepper */}
+              <ResolutionTimeline complaint={complaint} />
 
               <div className="complaint-details">
                 <div>
@@ -85,10 +95,19 @@ function ComplaintStatus() {
               </div>
 
               <p className="complaint-description">
-                Last updated: {complaint.updated_at
+                Last updated:{' '}
+                {complaint.updated_at
                   ? new Date(complaint.updated_at).toLocaleString()
                   : 'Not available'}
               </p>
+
+              {/* Customer Actions (e.g. Confirm & Close once Resolved) */}
+              <StatusTransitionModal
+                complaint={complaint}
+                userRole="customer"
+                token={token}
+                onStatusUpdated={handleStatusUpdated}
+              />
             </div>
           ))}
         </div>

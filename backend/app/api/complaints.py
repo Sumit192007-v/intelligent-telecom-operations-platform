@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import require_role
+from app.auth import get_current_user, require_role
 from app.models.models import Complaint, User
+from app.services.complaint_assignment import auto_assign_complaint
+from app.services.complaint_resolution import transition_complaint_status
 
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
@@ -36,8 +38,11 @@ def create_complaint(
         priority=data.priority,
         latitude=data.latitude,
         longitude=data.longitude,
-        status="Pending"
+        status="Pending",
     )
+
+    # Automatic assignment and department routing based on business rules
+    auto_assign_complaint(db, complaint)
 
     db.add(complaint)
     db.commit()
@@ -46,7 +51,9 @@ def create_complaint(
     return {
         "message": "Complaint submitted successfully",
         "complaint_id": complaint.id,
-        "status": complaint.status
+        "status": complaint.status,
+        "department": complaint.department,
+        "assigned_to": complaint.assigned_to,
     }
 @router.get("/")
 def get_all_complaints(
@@ -70,6 +77,8 @@ def get_all_complaints(
             "priority": complaint.priority,
             "status": complaint.status,
             "assigned_to": complaint.assigned_to,
+            "resolved_at": complaint.resolved_at,
+            "resolution_notes": complaint.resolution_notes,
             "created_at": complaint.created_at,
             "updated_at": complaint.updated_at,
         }
@@ -182,11 +191,64 @@ def get_customer_complaints(
             "department": complaint.department,
             "priority": complaint.priority,
             "status": complaint.status,
+            "assigned_to": complaint.assigned_to,
+            "resolved_at": complaint.resolved_at,
+            "resolution_notes": complaint.resolution_notes,
             "created_at": complaint.created_at,
             "updated_at": complaint.updated_at,
         }
         for complaint in complaints
     ]
+
+
+@router.get("/{complaint_id}")
+def get_complaint_by_id(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    complaint = (
+        db.query(Complaint)
+        .filter(Complaint.id == complaint_id)
+        .first()
+    )
+
+    if not complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Complaint not found",
+        )
+
+    # Customers can only view their own complaints; staff can view any
+    if current_user.role == "customer":
+        if complaint.customer_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to view this complaint",
+            )
+    elif current_user.role != "staff":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    return {
+        "id": complaint.id,
+        "customer_id": complaint.customer_id,
+        "complaint_type": complaint.complaint_type,
+        "subject": complaint.subject,
+        "description": complaint.description,
+        "department": complaint.department,
+        "priority": complaint.priority,
+        "status": complaint.status,
+        "assigned_to": complaint.assigned_to,
+        "resolved_at": complaint.resolved_at,
+        "resolution_notes": complaint.resolution_notes,
+        "created_at": complaint.created_at,
+        "updated_at": complaint.updated_at,
+    }
+
+
 class ComplaintAssignment(BaseModel):
     assigned_to: int
     department: str
@@ -211,6 +273,27 @@ def assign_complaint(
             detail="Complaint not found",
         )
 
+    # Department scoping:
+    # 1. Staff must be authorized to manage complaint in its current department
+    if complaint.department is not None:
+        if current_user.department is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff members without an assigned department cannot reassign complaints belonging to a named department.",
+            )
+        if current_user.department != complaint.department:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Staff members in '{current_user.department}' cannot reassign complaints belonging to the '{complaint.department}' department.",
+            )
+
+    # 2. Staff cannot transfer complaints to a department other than their own
+    if current_user.department is not None and data.department != current_user.department:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Staff members in '{current_user.department}' cannot transfer complaints to the '{data.department}' department.",
+        )
+
     assignee = db.query(User).filter(User.id == data.assigned_to).first()
     if assignee is None:
         raise HTTPException(
@@ -226,6 +309,11 @@ def assign_complaint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid department",
+        )
+    if assignee.department is not None and assignee.department != data.department:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Assignee belongs to department '{assignee.department}', cannot assign to '{data.department}'",
         )
 
     complaint.assigned_to = data.assigned_to
@@ -244,6 +332,7 @@ def assign_complaint(
     }
 class ComplaintStatusUpdate(BaseModel):
     status: str
+    resolution_notes: str | None = None
 
 
 @router.put("/{complaint_id}/status")
@@ -251,20 +340,19 @@ def update_complaint_status(
     complaint_id: int,
     data: ComplaintStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("staff")),
+    current_user: User = Depends(get_current_user),
 ):
-    allowed_statuses = [
-        "Pending",
-        "Assigned",
-        "In Progress",
-        "Resolved",
-        "Closed",
-    ]
-
-    if data.status not in allowed_statuses:
+    # Customer authorization guard: customers may only close their own resolved complaint
+    if current_user.role == "customer":
+        if data.status != "Closed":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Customers cannot update complaint status to this state.",
+            )
+    elif current_user.role != "staff":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid complaint status",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
         )
 
     complaint = (
@@ -279,13 +367,20 @@ def update_complaint_status(
             detail="Complaint not found",
         )
 
-    complaint.status = data.status
-
-    db.commit()
-    db.refresh(complaint)
+    # Use resolution service to validate lifecycle transitions, record timestamps, and save notes
+    complaint = transition_complaint_status(
+        db=db,
+        complaint=complaint,
+        new_status=data.status,
+        user=current_user,
+        resolution_notes=data.resolution_notes,
+    )
 
     return {
         "message": "Complaint status updated successfully",
         "complaint_id": complaint.id,
         "status": complaint.status,
+        "resolved_at": complaint.resolved_at,
+        "resolution_notes": complaint.resolution_notes,
+        "updated_at": complaint.updated_at,
     }
