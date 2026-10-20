@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS complaints (
         'Closed'
     ) DEFAULT 'Pending',
     assigned_to INT DEFAULT NULL,
+    resolved_at DATETIME DEFAULT NULL,
+    resolution_notes TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,

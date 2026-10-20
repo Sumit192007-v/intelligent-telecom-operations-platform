@@ -30,6 +30,8 @@ class Complaint(Base):
     priority = Column(String(20), default="Medium")
     status = Column(String(30), default="Pending")
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    resolution_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(
         DateTime,

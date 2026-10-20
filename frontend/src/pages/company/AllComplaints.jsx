@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import {
-  getAllComplaints,
-  updateComplaintStatus,
-} from '../../services/api'
+import { getAllComplaints } from '../../services/api'
 import { useAuth } from '../../AuthContext'
+import ResolutionTimeline from '../../components/complaints/ResolutionTimeline'
+import StatusTransitionModal from '../../components/complaints/StatusTransitionModal'
+import AssignmentBadge from '../../components/complaints/AssignmentBadge'
+import '../../styles/complaint-operations.css'
 
 function AllComplaints() {
   const { token } = useAuth()
@@ -11,24 +12,11 @@ function AllComplaints() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function handleStatusChange(
-  complaintId,
-  status
-) {
-  try {
-    await updateComplaintStatus(
-      complaintId,
-      status,
-      token
+  const handleStatusUpdated = (updated) => {
+    setComplaints((prev) =>
+      prev.map((c) => (c.id === updated.complaint_id ? { ...c, ...updated } : c))
     )
-
-    const data = await getAllComplaints(token)
-    setComplaints(data)
-  } catch (err) {
-    console.error(err)
-    alert('Failed to update complaint status')
   }
-}
 
   useEffect(() => {
     async function loadComplaints() {
@@ -58,7 +46,7 @@ function AllComplaints() {
       <div className="complaints-header">
         <div>
           <h1>All Complaints</h1>
-          <p>View and manage customer complaints.</p>
+          <p>View, route, and manage customer complaints across their full lifecycle.</p>
         </div>
 
         <div className="complaints-count">
@@ -83,29 +71,27 @@ function AllComplaints() {
                   <h2>{complaint.subject}</h2>
                 </div>
 
-                <select
-  className={`complaint-status status-${complaint.status
-    .toLowerCase()
-    .replace(/\s+/g, '-')}`}
-  value={complaint.status}
-  onChange={(e) =>
-    handleStatusChange(
-      complaint.id,
-      e.target.value
-    )
-  }
->
-  <option value="Pending">Pending</option>
-  <option value="Assigned">Assigned</option>
-  <option value="In Progress">In Progress</option>
-  <option value="Resolved">Resolved</option>
-  <option value="Closed">Closed</option>
-</select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AssignmentBadge
+                    department={complaint.department}
+                    assignedTo={complaint.assigned_to}
+                  />
+                  <span
+                    className={`complaint-status status-${complaint.status
+                      .toLowerCase()
+                      .replace(/\s+/g, '-')}`}
+                  >
+                    {complaint.status}
+                  </span>
+                </div>
               </div>
 
               <p className="complaint-description">
                 {complaint.description}
               </p>
+
+              {/* Lifecycle Progress Timeline */}
+              <ResolutionTimeline complaint={complaint} />
 
               <div className="complaint-details">
                 <div>
@@ -131,10 +117,18 @@ function AllComplaints() {
                 <div>
                   <span>Assigned To</span>
                   <strong>
-                    {complaint.assigned_to || 'Not assigned'}
+                    {complaint.assigned_to ? `#${complaint.assigned_to}` : 'Not assigned'}
                   </strong>
                 </div>
               </div>
+
+              {/* Valid Lifecycle Transition Actions with Resolution Notes Prompt */}
+              <StatusTransitionModal
+                complaint={complaint}
+                userRole="staff"
+                token={token}
+                onStatusUpdated={handleStatusUpdated}
+              />
             </div>
           ))}
         </div>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../AuthContext'
 import { getCustomerComplaints } from '../../services/api'
+import AssignmentBadge from '../../components/complaints/AssignmentBadge'
+import '../../styles/complaint-operations.css'
 
 function MyComplaints() {
   const { token } = useAuth()
@@ -72,18 +74,35 @@ function MyComplaints() {
                   <h2>{complaint.subject}</h2>
                 </div>
 
-                <span
-                  className={`complaint-status status-${complaint.status
-                    .toLowerCase()
-                    .replace(/\s+/g, '-')}`}
-                >
-                  {complaint.status}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AssignmentBadge
+                    department={complaint.department}
+                    assignedTo={complaint.assigned_to}
+                  />
+                  <span
+                    className={`complaint-status status-${complaint.status
+                      .toLowerCase()
+                      .replace(/\s+/g, '-')}`}
+                  >
+                    {complaint.status}
+                  </span>
+                </div>
               </div>
 
               <p className="complaint-description">
                 {complaint.description}
               </p>
+
+              {complaint.resolution_notes && (
+                <div className="co-resolution-notes-card" style={{ marginBottom: '14px' }}>
+                  <div className="co-resolution-notes-title">
+                    <span>✓ Resolution Summary</span>
+                  </div>
+                  <p className="co-resolution-notes-body">
+                    {complaint.resolution_notes}
+                  </p>
+                </div>
+              )}
 
               <div className="complaint-details">
                 <div>
