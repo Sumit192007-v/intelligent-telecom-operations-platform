@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth import create_access_token, get_current_user
+from app.auth import create_access_token, get_current_user, normalize_department
 from app.database import get_db
 from app.models.models import User
 
@@ -38,19 +38,32 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
             detail="Invalid email or password",
         )
 
+    user_data = {
+        "id": user.id,
+        "role": user.role,
+    }
+    if user.department is not None:
+        user_data["department"] = normalize_department(user.department) or user.department
+    if user.name and user.department is not None:
+        user_data["name"] = user.name
+
     return {
         "access_token": create_access_token(user.id),
         "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "role": user.role,
-        },
+        "user": user_data,
     }
 
 
 @router.get("/session")
 def get_session(current_user: User = Depends(get_current_user)):
-    return {
+    user_data = {
         "id": current_user.id,
         "role": current_user.role,
     }
+    if current_user.department is not None:
+        user_data["department"] = (
+            normalize_department(current_user.department) or current_user.department
+        )
+    if current_user.name and current_user.department is not None:
+        user_data["name"] = current_user.name
+    return user_data

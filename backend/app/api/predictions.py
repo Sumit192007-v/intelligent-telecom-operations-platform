@@ -9,7 +9,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from ml.src.predict import predict_latency
-from app.auth import require_role
+from app.auth import MANAGEMENT_ROLES, normalize_department, require_role
+from app.models.models import User
 
 
 router = APIRouter(prefix="/predict", tags=["ML Prediction"])
@@ -27,8 +28,22 @@ class PredictionRequest(BaseModel):
     lte_earfcn: float | None = None
 
 
-@router.post("/", dependencies=[Depends(require_role("staff"))])
-def predict_network_latency(data: PredictionRequest):
+@router.post("/")
+def predict_network_latency(
+    data: PredictionRequest,
+    current_user: User = Depends(require_role("staff")),
+):
+    user_dept = normalize_department(current_user.department)
+    if (
+        current_user.role not in MANAGEMENT_ROLES
+        and user_dept is not None
+        and user_dept != "Network"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access to latency prediction is restricted to the Network department.",
+        )
+
     try:
         return predict_latency(
             operator=data.operator,

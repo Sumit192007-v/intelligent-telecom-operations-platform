@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
+import { useAuth, getAuthorizedDashboard } from '../AuthContext'
 
 export default function Login() {
   const { login } = useAuth()
@@ -16,7 +16,7 @@ export default function Login() {
     setLoading(true)
     try {
       const user = await login(email, password)
-      navigate(user.role === 'customer' ? '/customer' : '/company')
+      navigate(getAuthorizedDashboard(user))
     } catch {
       setError('Unable to sign in. Check your email and password.')
     } finally {

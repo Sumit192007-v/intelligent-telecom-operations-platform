@@ -1,6 +1,6 @@
 import React from 'react'
 import { Navigate, Routes, Route } from 'react-router-dom'
-import { useAuth } from './AuthContext.jsx'
+import { useAuth, getAuthorizedDashboard } from './AuthContext.jsx'
 
 import Layout from './Layout.jsx'
 import Home from './pages/Home.jsx'
@@ -18,20 +18,48 @@ import Login from './pages/Login.jsx'
 import InteractiveBackground from './components/InteractiveBackground.jsx'
 import ChatbotWidget from './components/chatbot/ChatbotWidget.jsx'
 
-function ProtectedLayout({ role }) {
+function CustomerLayout() {
   const { token, user, sessionReady } = useAuth()
 
   if (!sessionReady) return <main>Checking session...</main>
   if (!token || !user) return <Navigate to="/login" replace />
-  if (user.role !== role) {
-    return (
-      <Navigate
-        to={user.role === 'customer' ? '/customer' : '/company'}
-        replace
-      />
-    )
+  if (user.role !== 'customer') {
+    return <Navigate to={getAuthorizedDashboard(user)} replace />
   }
   return <Layout />
+}
+
+function EmployeeLayout() {
+  const { token, user, sessionReady } = useAuth()
+
+  if (!sessionReady) return <main>Checking session...</main>
+  if (!token || !user) return <Navigate to="/login" replace />
+  if (user.role === 'customer') {
+    return <Navigate to="/customer" replace />
+  }
+  return <Layout />
+}
+
+function NetworkOnlyRoute({ children }) {
+  const { user, department } = useAuth()
+  const isManager = user?.role === 'manager' || user?.role === 'admin'
+  const isAuthorized = department === 'Network' || isManager || !department
+  if (!isAuthorized) {
+    return <Navigate to={getAuthorizedDashboard(user)} replace />
+  }
+  return children
+}
+
+function ManagementOnlyRoute({ children }) {
+  const { user, department } = useAuth()
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'admin' ||
+    department === 'Operations'
+  if (!isManager) {
+    return <Navigate to={getAuthorizedDashboard(user)} replace />
+  }
+  return children
 }
 
 function LoginRoute() {
@@ -39,12 +67,7 @@ function LoginRoute() {
 
   if (!sessionReady) return <main>Checking session...</main>
   if (token && user) {
-    return (
-      <Navigate
-        to={user.role === 'customer' ? '/customer' : '/company'}
-        replace
-      />
-    )
+    return <Navigate to={getAuthorizedDashboard(user)} replace />
   }
   return <Login />
 }
@@ -58,19 +81,33 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
         </Route>
-        <Route element={<ProtectedLayout role="customer" />}>
+        <Route element={<CustomerLayout />}>
           <Route path="/customer" element={<CustomerDashboard />} />
           <Route path="/customer/complaint" element={<SubmitComplaint />} />
           <Route path="/customer/complaints" element={<MyComplaints />} />
           <Route path="/customer/status" element={<ComplaintStatus />} />
           <Route path="/customer/network" element={<NetworkStatus />} />
         </Route>
-        <Route element={<ProtectedLayout role="staff" />}>
+        <Route element={<EmployeeLayout />}>
           <Route path="/company" element={<CompanyDashboard />} />
           <Route path="/company/complaints" element={<AllComplaints />} />
           <Route path="/company/assign" element={<AssignComplaint />} />
-          <Route path="/company/departments" element={<DepartmentManagement />} />
-          <Route path="/company/network" element={<NetworkInsights />} />
+          <Route
+            path="/company/departments"
+            element={
+              <ManagementOnlyRoute>
+                <DepartmentManagement />
+              </ManagementOnlyRoute>
+            }
+          />
+          <Route
+            path="/company/network"
+            element={
+              <NetworkOnlyRoute>
+                <NetworkInsights />
+              </NetworkOnlyRoute>
+            }
+          />
         </Route>
       </Routes>
       <ChatbotWidget />

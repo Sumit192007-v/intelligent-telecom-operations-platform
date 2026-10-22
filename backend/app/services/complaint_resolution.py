@@ -33,9 +33,10 @@ CUSTOMER_ALLOWED_TRANSITIONS = {
 
 def get_allowed_transitions_for_role(current_status: str, role: str) -> list[str]:
     """Return the list of statuses the given role can transition the complaint into."""
+    from app.auth import EMPLOYEE_ROLES
     if role == "customer":
         allowed = CUSTOMER_ALLOWED_TRANSITIONS.get(current_status, {current_status})
-    elif role == "staff":
+    elif role == "staff" or role in EMPLOYEE_ROLES:
         allowed = ALLOWED_TRANSITIONS.get(current_status, {current_status})
     else:
         allowed = {current_status}
@@ -82,16 +83,19 @@ def validate_status_transition(
             )
         return
 
-    # Staff role transitions
-    if user.role == "staff":
+    # Staff and employee role transitions
+    from app.auth import EMPLOYEE_ROLES, MANAGEMENT_ROLES, normalize_department
+    if user.role == "staff" or user.role in EMPLOYEE_ROLES:
         # Department scoping:
-        if complaint.department is not None:
+        if complaint.department is not None and user.role not in MANAGEMENT_ROLES:
             if user.department is None:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Staff members without an assigned department cannot modify complaints belonging to a named department.",
                 )
-            if user.department != complaint.department:
+            user_dept = normalize_department(user.department)
+            comp_dept = normalize_department(complaint.department)
+            if user_dept != comp_dept:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Staff members in '{user.department}' cannot modify complaints belonging to the '{complaint.department}' department.",
