@@ -2,7 +2,41 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { login as requestLogin, validateSession } from './services/api'
 
 const AuthContext = createContext(null)
-const supportedRoles = ['customer', 'staff']
+export const supportedRoles = [
+  'customer',
+  'staff',
+  'support_agent',
+  'engineer',
+  'manager',
+  'admin',
+]
+
+export function normalizeDepartment(dept) {
+  if (!dept) return null
+  const d = String(dept).trim().toLowerCase()
+  if (d === 'network' || d === 'network operations') return 'Network'
+  if (d === 'technical' || d === 'technical support' || d === 'field engineering') return 'Technical'
+  if (d === 'billing' || d === 'billing and payments' || d === 'billing & payments') return 'Billing'
+  if (d === 'customer support' || d === 'support' || d === 'customer service') return 'Customer Support'
+  if (d === 'operations' || d === 'management') return 'Operations'
+  return String(dept).trim()
+}
+
+export function getAuthorizedDashboard(user) {
+  if (!user) return '/login'
+  if (user.role === 'customer') return '/customer'
+  const dept = normalizeDepartment(user.department)
+  if (user.role === 'manager' || user.role === 'admin' || dept === 'Operations') {
+    return '/company'
+  }
+  if (dept === 'Network') {
+    return '/company/network'
+  }
+  if (dept === 'Technical' || dept === 'Billing' || dept === 'Customer Support') {
+    return '/company/complaints'
+  }
+  return '/company'
+}
 
 function clearStoredAuth() {
   localStorage.removeItem('access_token')
@@ -128,8 +162,23 @@ export function AuthProvider({ children }) {
     setSessionReady(true)
   }
 
+  const isCustomer = user?.role === 'customer'
+  const isEmployee = Boolean(user && user.role !== 'customer')
+  const department = normalizeDepartment(user?.department)
+
   return (
-    <AuthContext.Provider value={{ token, user, sessionReady, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        token,
+        user,
+        sessionReady,
+        login,
+        logout,
+        isCustomer,
+        isEmployee,
+        department,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

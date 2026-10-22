@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status as http_status
 from sqlalchemy.orm import Session
 import numpy as np
 from sklearn.neighbors import BallTree
 
-from app.auth import require_role
+from app.auth import MANAGEMENT_ROLES, normalize_department, require_role
 from app.database import get_db
 from app.models.models import Complaint, NetworkMeasurement, User
 
@@ -22,6 +22,17 @@ def get_network_measurements(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("staff")),
 ):
+    user_dept = normalize_department(current_user.department)
+    if (
+        current_user.role not in MANAGEMENT_ROLES
+        and user_dept is not None
+        and user_dept != "Network"
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Access to network measurements is restricted to the Network department.",
+        )
+
     query = db.query(NetworkMeasurement)
 
     if operator:
@@ -61,6 +72,17 @@ def get_network_map_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("staff")),
 ):
+    user_dept = normalize_department(current_user.department)
+    if (
+        current_user.role not in MANAGEMENT_ROLES
+        and user_dept is not None
+        and user_dept != "Network"
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="Access to network map data is restricted to the Network department.",
+        )
+
     measurements = (
         db.query(
             NetworkMeasurement.id.label("id"),

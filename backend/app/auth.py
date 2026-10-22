@@ -83,9 +83,37 @@ def get_current_user(
     return user
 
 
+EMPLOYEE_ROLES = {"staff", "support_agent", "engineer", "manager", "admin"}
+MANAGEMENT_ROLES = {"manager", "admin"}
+CONFIGURED_DEPARTMENTS = ("Technical", "Network", "Billing", "Customer Support")
+
+
+def normalize_department(dept: str | None) -> str | None:
+    if not dept:
+        return None
+    d = dept.strip().lower()
+    if d in ("network", "network operations"):
+        return "Network"
+    if d in ("technical", "technical support", "field engineering"):
+        return "Technical"
+    if d in ("billing", "billing and payments", "billing & payments"):
+        return "Billing"
+    if d in ("customer support", "support", "customer service"):
+        return "Customer Support"
+    if d in ("operations", "management"):
+        return "Operations"
+    return dept.strip()
+
+
 def require_role(role: str):
     def check_role(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role != role:
+        if role == "staff":
+            if current_user.role != "staff" and current_user.role not in EMPLOYEE_ROLES:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Insufficient permissions",
+                )
+        elif current_user.role != role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",
@@ -93,3 +121,37 @@ def require_role(role: str):
         return current_user
 
     return check_role
+
+
+def require_employee(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "staff" and current_user.role not in EMPLOYEE_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employee access required",
+        )
+    return current_user
+
+
+def require_department(*allowed_departments: str):
+    normalized_allowed = {d.strip().lower() for d in allowed_departments}
+
+    def check_dept(current_user: User = Depends(require_employee)) -> User:
+        # Managers and admins have cross-department oversight
+        if current_user.role in MANAGEMENT_ROLES:
+            return current_user
+
+        if not current_user.department:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Employee account does not have a department assigned.",
+            )
+
+        user_dept = normalize_department(current_user.department)
+        if not user_dept or user_dept.lower() not in normalized_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access restricted to {', '.join(allowed_departments)} department.",
+            )
+        return current_user
+
+    return check_dept

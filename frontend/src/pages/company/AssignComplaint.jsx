@@ -6,10 +6,14 @@ import {
 import { useAuth } from '../../AuthContext'
 
 function AssignComplaint() {
-  const { token } = useAuth()
+  const { token, user, department: userDept } = useAuth()
+  const isManager =
+    user?.role === 'manager' ||
+    user?.role === 'admin' ||
+    userDept === 'Operations'
   const [complaintId, setComplaintId] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
-  const [department, setDepartment] = useState('Technical')
+  const [department, setDepartment] = useState(userDept || 'Technical')
 
   const [staff, setStaff] = useState([])
   const [loadingStaff, setLoadingStaff] = useState(true)
@@ -17,6 +21,12 @@ function AssignComplaint() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (userDept && !isManager) {
+      setDepartment(userDept)
+    }
+  }, [userDept, isManager])
 
   useEffect(() => {
     async function loadStaff() {
@@ -122,13 +132,18 @@ function AssignComplaint() {
           <select
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
+            disabled={Boolean(userDept && !isManager)}
           >
-            <option value="Technical">Technical</option>
-            <option value="Network">Network</option>
-            <option value="Billing">Billing</option>
-            <option value="Customer Support">
-              Customer Support
-            </option>
+            {userDept && !isManager ? (
+              <option value={userDept}>{userDept}</option>
+            ) : (
+              <>
+                <option value="Technical">Technical</option>
+                <option value="Network">Network</option>
+                <option value="Billing">Billing</option>
+                <option value="Customer Support">Customer Support</option>
+              </>
+            )}
           </select>
         </div>
 

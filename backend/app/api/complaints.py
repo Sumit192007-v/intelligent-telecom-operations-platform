@@ -5,7 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.auth import get_current_user, require_role
+from app.auth import (
+    EMPLOYEE_ROLES,
+    MANAGEMENT_ROLES,
+    get_current_user,
+    normalize_department,
+    require_role,
+)
 from app.models.models import Complaint, User
 from app.services.complaint_assignment import auto_assign_complaint
 from app.services.complaint_resolution import transition_complaint_status
@@ -57,11 +63,28 @@ def create_complaint(
     }
 @router.get("/")
 def get_all_complaints(
+    department: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("staff")),
 ):
+    query = db.query(Complaint)
+    user_dept = normalize_department(current_user.department)
+
+    # Scoping for non-management employees:
+    if current_user.role not in MANAGEMENT_ROLES and user_dept is not None:
+        if department and normalize_department(department) != user_dept:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Staff in '{user_dept}' cannot view complaints belonging to '{department}'.",
+            )
+        query = query.filter(Complaint.department == user_dept)
+    elif department:
+        norm = normalize_department(department)
+        if norm:
+            query = query.filter(Complaint.department == norm)
+
     complaints = (
-        db.query(Complaint)
+        query
         .order_by(Complaint.created_at.desc())
         .all()
     )
@@ -86,12 +109,21 @@ def get_all_complaints(
     ]
 @router.get("/staff")
 def get_staff(
+    department: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("staff")),
 ):
+    query = db.query(User).filter(
+        (User.role == "staff") | (User.role.in_(EMPLOYEE_ROLES))
+    )
+    user_dept = normalize_department(current_user.department)
+    if current_user.role not in MANAGEMENT_ROLES and user_dept is not None:
+        query = query.filter(User.department.ilike(f"%{user_dept}%"))
+    elif department:
+        query = query.filter(User.department.ilike(f"%{department}%"))
+
     staff = (
-        db.query(User)
-        .filter(User.role == "staff")
+        query
         .order_by(User.name)
         .all()
     )
@@ -110,37 +142,17 @@ def get_complaint_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("staff")),
 ):
-    total = db.query(Complaint).count()
+    query = db.query(Complaint)
+    user_dept = normalize_department(current_user.department)
+    if current_user.role not in MANAGEMENT_ROLES and user_dept is not None:
+        query = query.filter(Complaint.department == user_dept)
 
-    pending = (
-        db.query(Complaint)
-        .filter(Complaint.status == "Pending")
-        .count()
-    )
-
-    assigned = (
-        db.query(Complaint)
-        .filter(Complaint.status == "Assigned")
-        .count()
-    )
-
-    in_progress = (
-        db.query(Complaint)
-        .filter(Complaint.status == "In Progress")
-        .count()
-    )
-
-    resolved = (
-        db.query(Complaint)
-        .filter(Complaint.status == "Resolved")
-        .count()
-    )
-
-    closed = (
-        db.query(Complaint)
-        .filter(Complaint.status == "Closed")
-        .count()
-    )
+    total = query.count()
+    pending = query.filter(Complaint.status == "Pending").count()
+    assigned = query.filter(Complaint.status == "Assigned").count()
+    in_progress = query.filter(Complaint.status == "In Progress").count()
+    resolved = query.filter(Complaint.status == "Resolved").count()
+    closed = query.filter(Complaint.status == "Closed").count()
 
     return {
         "total": total,
@@ -149,6 +161,7 @@ def get_complaint_summary(
         "in_progress": in_progress,
         "resolved": resolved,
         "closed": closed,
+        "department": user_dept,
     }
 @router.get("/departments")
 def get_department_summary(
@@ -219,18 +232,32 @@ def get_complaint_by_id(
             detail="Complaint not found",
         )
 
-    # Customers can only view their own complaints; staff can view any
+    # Customers can only view their own complaints; staff can view authorized department
     if current_user.role == "customer":
         if complaint.customer_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to view this complaint",
             )
-    elif current_user.role != "staff":
+    elif current_user.role != "staff" and current_user.role not in EMPLOYEE_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
+    else:
+        # Cross-department check for employees:
+        user_dept = normalize_department(current_user.department)
+        comp_dept = normalize_department(complaint.department)
+        if (
+            current_user.role not in MANAGEMENT_ROLES
+            and user_dept is not None
+            and comp_dept is not None
+            and user_dept != comp_dept
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Staff in '{user_dept}' cannot view complaints belonging to the '{comp_dept}' department.",
+            )
 
     return {
         "id": complaint.id,
@@ -274,21 +301,25 @@ def assign_complaint(
         )
 
     # Department scoping:
+    user_dept = normalize_department(current_user.department)
+    comp_dept = normalize_department(complaint.department)
+    target_dept = normalize_department(data.department)
+
     # 1. Staff must be authorized to manage complaint in its current department
-    if complaint.department is not None:
-        if current_user.department is None:
+    if comp_dept is not None and current_user.role not in MANAGEMENT_ROLES:
+        if user_dept is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Staff members without an assigned department cannot reassign complaints belonging to a named department.",
             )
-        if current_user.department != complaint.department:
+        if user_dept != comp_dept:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Staff members in '{current_user.department}' cannot reassign complaints belonging to the '{complaint.department}' department.",
             )
 
-    # 2. Staff cannot transfer complaints to a department other than their own
-    if current_user.department is not None and data.department != current_user.department:
+    # 2. Staff cannot transfer complaints to a department other than their own (unless manager)
+    if user_dept is not None and current_user.role not in MANAGEMENT_ROLES and target_dept != user_dept:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Staff members in '{current_user.department}' cannot transfer complaints to the '{data.department}' department.",
@@ -300,17 +331,18 @@ def assign_complaint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Staff member not found",
         )
-    if assignee.role != "staff":
+    if assignee.role != "staff" and assignee.role not in EMPLOYEE_ROLES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assignee must have the staff role",
         )
-    if data.department not in DEPARTMENTS:
+    if target_dept not in DEPARTMENTS and data.department not in DEPARTMENTS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid department",
         )
-    if assignee.department is not None and assignee.department != data.department:
+    assignee_dept = normalize_department(assignee.department)
+    if assignee_dept is not None and target_dept is not None and assignee_dept != target_dept:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Assignee belongs to department '{assignee.department}', cannot assign to '{data.department}'",

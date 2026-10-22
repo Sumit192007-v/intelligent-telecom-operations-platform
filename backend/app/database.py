@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 # Load backend/.env explicitly
 ENV_FILE = ROOT / "backend" / ".env"
-load_dotenv(ENV_FILE)
+load_dotenv(ENV_FILE, override=True)
 
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")

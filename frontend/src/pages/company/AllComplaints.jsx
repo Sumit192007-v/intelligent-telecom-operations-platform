@@ -7,7 +7,7 @@ import AssignmentBadge from '../../components/complaints/AssignmentBadge'
 import '../../styles/complaint-operations.css'
 
 function AllComplaints() {
-  const { token } = useAuth()
+  const { token, user, department: userDept } = useAuth()
   const [complaints, setComplaints] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -45,8 +45,12 @@ function AllComplaints() {
     <div className="complaints-page">
       <div className="complaints-header">
         <div>
-          <h1>All Complaints</h1>
-          <p>View, route, and manage customer complaints across their full lifecycle.</p>
+          <h1>{userDept ? `${userDept} Complaints` : 'All Complaints'}</h1>
+          <p>
+            {userDept
+              ? `View, route, and manage ${userDept} customer complaints across their full lifecycle.`
+              : 'View, route, and manage customer complaints across their full lifecycle.'}
+          </p>
         </div>
 
         <div className="complaints-count">
@@ -125,7 +129,7 @@ function AllComplaints() {
               {/* Valid Lifecycle Transition Actions with Resolution Notes Prompt */}
               <StatusTransitionModal
                 complaint={complaint}
-                userRole="staff"
+                userRole={user?.role || 'staff'}
                 token={token}
                 onStatusUpdated={handleStatusUpdated}
               />

@@ -8,6 +8,8 @@ env/
 # Environment variables / secrets
 .env
 backend/.env
+employee_test_credentials.txt*
+*.tmp
 
 # Node.js
 node_modules/
