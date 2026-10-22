@@ -16,6 +16,7 @@ import DepartmentManagement from './pages/company/DepartmentManagement.jsx'
 import NetworkInsights from './pages/company/NetworkInsights.jsx'
 import Login from './pages/Login.jsx'
 import InteractiveBackground from './components/InteractiveBackground.jsx'
+import ChatbotWidget from './components/chatbot/ChatbotWidget.jsx'
 
 function ProtectedLayout({ role }) {
   const { token, user, sessionReady } = useAuth()
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/company/network" element={<NetworkInsights />} />
         </Route>
       </Routes>
+      <ChatbotWidget />
     </>
   )
 }

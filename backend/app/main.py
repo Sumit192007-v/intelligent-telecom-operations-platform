@@ -6,6 +6,7 @@ from app.api.auth import router as auth_router
 from app.api.predictions import router as prediction_router
 from app.api.complaints import router as complaints_router
 from app.api.network import router as network_router
+from app.api.chatbot import router as chatbot_router
 
 app = FastAPI(title="Intelligent Telecom Operations Platform API")
 
@@ -25,6 +26,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(prediction_router, prefix="/api")
 app.include_router(complaints_router, prefix="/api")
 app.include_router(network_router, prefix="/api")
+app.include_router(chatbot_router, prefix="/api")
 
 @app.get("/")
 def root():
