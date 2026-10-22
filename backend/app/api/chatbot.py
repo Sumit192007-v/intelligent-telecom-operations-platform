@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
+from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -16,7 +18,10 @@ logger = logging.getLogger("chatbot")
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = ROOT / "backend" / ".env"
+
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 MAX_HISTORY_MESSAGES = 12
 MAX_MESSAGE_LENGTH = 2000
 
@@ -60,7 +65,7 @@ CHATBOT_TOOLS = [
                 "type": "object",
                 "properties": {
                     "operator": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "description": "Optional operator name to filter (e.g., 'Airtel', 'Jio', 'Vodafone')",
                     }
                 },
@@ -211,8 +216,8 @@ def execute_tool(
         if name == "check_network_status":
             operator = args.get("operator")
             query = db.query(NetworkMeasurement)
-            if operator:
-                query = query.filter(NetworkMeasurement.operator.ilike(f"%{operator}%"))
+            if operator and str(operator).strip().lower() not in ("null", "none", "all", ""):
+                query = query.filter(NetworkMeasurement.operator.ilike(f"%{str(operator).strip()}%"))
             measurements = (
                 query.order_by(NetworkMeasurement.timestamp.desc()).limit(150).all()
             )
@@ -438,6 +443,8 @@ def execute_tool(
 @router.get("/config")
 def get_chatbot_config():
     """Return public configuration status of the chatbot service."""
+    if ENV_FILE.exists():
+        load_dotenv(ENV_FILE, override=True)
     api_key = os.getenv("GROQ_API_KEY", "")
     configured = bool(
         api_key
@@ -472,6 +479,8 @@ def handle_chat_message(
             detail="Message content cannot be empty",
         )
 
+    if ENV_FILE.exists():
+        load_dotenv(ENV_FILE, override=True)
     groq_api_key = os.getenv("GROQ_API_KEY", "").strip()
     groq_model = os.getenv("GROQ_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 

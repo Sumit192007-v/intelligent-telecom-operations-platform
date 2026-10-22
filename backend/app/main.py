@@ -1,5 +1,13 @@
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Ensure backend/.env is loaded at startup
+ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = ROOT / "backend" / ".env"
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE, override=True)
 
 from app.api.health import router as health_router
 from app.api.auth import router as auth_router

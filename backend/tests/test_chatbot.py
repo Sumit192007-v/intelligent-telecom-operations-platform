@@ -207,3 +207,39 @@ def test_chatbot_groq_rate_limit_error(api_client, monkeypatch):
         assert data["status"] == "rate_limit"
         assert "rate limit" in data["response"]
 
+
+def test_chatbot_tool_network_status_null_operator(api_client):
+    _, session_factory = api_client
+    with session_factory() as db:
+        from datetime import datetime
+        meas = NetworkMeasurement(
+            operator="Jio",
+            timestamp=datetime.utcnow(),
+            latitude=19.0760,
+            longitude=72.8777,
+            download_mbps=55.0,
+            upload_mbps=20.0,
+            rtt_ms=25.0,
+            network_technology="5G",
+        )
+        db.add(meas)
+        db.commit()
+
+        # Test operator is None
+        result_none = execute_tool("check_network_status", {"operator": None}, db, None)
+        assert result_none["network_status"] in ("Normal", "Degraded")
+        assert result_none["recent_telemetry_samples"] >= 1
+
+        # Test operator is string "null"
+        result_str_null = execute_tool("check_network_status", {"operator": "null"}, db, None)
+        assert result_str_null["network_status"] in ("Normal", "Degraded")
+        assert result_str_null["recent_telemetry_samples"] >= 1
+
+
+def test_chatbot_tool_schema_allows_null():
+    from app.api.chatbot import CHATBOT_TOOLS, DEFAULT_MODEL
+    assert DEFAULT_MODEL == "openai/gpt-oss-120b"
+    net_tool = next(t for t in CHATBOT_TOOLS if t["function"]["name"] == "check_network_status")
+    op_type = net_tool["function"]["parameters"]["properties"]["operator"]["type"]
+    assert "null" in op_type and "string" in op_type
+
